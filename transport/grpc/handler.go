@@ -21,6 +21,7 @@
 package grpc
 
 import (
+	"bytes"
 	"strings"
 	"time"
 
@@ -28,7 +29,6 @@ import (
 	"go.uber.org/yarpc"
 	"go.uber.org/yarpc/api/middleware"
 	"go.uber.org/yarpc/api/transport"
-	"go.uber.org/yarpc/internal/bufferpool"
 	"go.uber.org/yarpc/internal/grpcerrorcodes"
 	"go.uber.org/yarpc/yarpcerrors"
 	"go.uber.org/zap"
@@ -37,12 +37,22 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/grpc/mem"
 )
 
 var (
 	// errInvalidGRPCStream is applied before yarpc so it's a raw GRPC error
 	errInvalidGRPCStream = status.Error(codes.InvalidArgument, "received grpc request with invalid stream")
 	errInvalidGRPCMethod = yarpcerrors.Newf(yarpcerrors.CodeInvalidArgument, "invalid stream method name for request")
+	
+	defaultBufferPoolSizes = []int{
+	   256,
+	   4 << 10,  // 4KB (go page size)
+	   16 << 10, // 16KB (max HTTP/2 frame size used by gRPC)
+	   32 << 10, // 32KB (default buffer size for io.Copy)
+	   1 << 20,  // 1MB
+   }
+	defaultBufferPool mem.BufferPool
 )
 
 type handler struct {
@@ -192,14 +202,13 @@ func (h *handler) handleUnary(
 	if err := serverStream.RecvMsg(&requestData); err != nil {
 		return err
 	}
-	// TODO: avoid redundant buffer copy
-	requestBuffer := bufferpool.Get()
-	defer bufferpool.Put(requestBuffer)
-
-	// Buffers are documented to always return a nil error.
-	_, _ = requestBuffer.Write(requestData)
-	transportRequest.Body = requestBuffer
-	transportRequest.BodySize = len(requestData)
+	
+	// Create a new buffer with reference counting
+	buf := mem.NewBuffer(&requestData, defaultBufferPool)
+	defer buf.Free()
+	
+	transportRequest.Body = bytes.NewReader(buf.ReadOnlyData())
+	transportRequest.BodySize = buf.Len()
 
 	responseWriter := newResponseWriter()
 	defer responseWriter.Close()
