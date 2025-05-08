@@ -294,6 +294,18 @@ func KeepaliveParams(params keepalive.ClientParameters) DialOption {
 	}
 }
 
+// ForceCodec returns an InboundOption and OutboundOption that forces the use of a specific codec.
+func ForceCodec(codec interface{}) interface{} {
+	return func(options interface{}) {
+		switch o := options.(type) {
+		case *inboundOptions:
+			o.codec = codec
+		case *outboundOptions:
+			o.codec = codec
+		}
+	}
+}
+
 type transportOptions struct {
 	backoffStrategy           backoff.Strategy
 	tracer                    opentracing.Tracer
@@ -353,6 +365,7 @@ func newTransportOptions(options []TransportOption) *transportOptions {
 
 type inboundOptions struct {
 	creds credentials.TransportCredentials
+	codec interface{}
 
 	tlsConfig *tls.Config
 	tlsMode   yarpctls.Mode
@@ -368,6 +381,7 @@ func newInboundOptions(options []InboundOption) *inboundOptions {
 
 type outboundOptions struct {
 	compressor        string
+	codec             interface{}
 	tlsConfigProvider yarpctls.OutboundTLSConfigProvider
 }
 

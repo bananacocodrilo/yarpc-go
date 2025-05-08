@@ -80,7 +80,7 @@ func TestYARPCBasic(t *testing.T) {
 }
 
 func TestGRPCBasic(t *testing.T) {
-	t.Parallel()
+	//t.Parallel()
 	te := testEnvOptions{}
 	te.do(t, func(t *testing.T, e *testEnv) {
 		_, err := e.GetValueGRPC(context.Background(), "foo")
