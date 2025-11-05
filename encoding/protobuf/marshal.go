@@ -30,6 +30,7 @@ import (
 	"go.uber.org/yarpc/api/transport"
 	"go.uber.org/yarpc/internal/bufferpool"
 	"go.uber.org/yarpc/yarpcerrors"
+	"google.golang.org/grpc/mem"
 )
 
 var (
@@ -73,6 +74,10 @@ func unmarshalBytes(encoding transport.Encoding, body []byte, message proto.Mess
 	case JSONEncoding:
 		return unmarshalJSON(body, message, codec)
 	default:
+		if customCodec := getCodecForEncoding(encoding); customCodec != nil {
+			bufferSlice := mem.BufferSlice{mem.SliceBuffer(body)}
+			return customCodec.Unmarshal(bufferSlice, message)
+		}
 		return yarpcerrors.Newf(yarpcerrors.CodeInternal, "encoding.Expect should have handled encoding %q but did not", encoding)
 	}
 }
