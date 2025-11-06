@@ -62,7 +62,7 @@ func CreateCustomCodec(anyResolver jsonpb.AnyResolver) *codec {
 func getCodecForEncoding(encoding transport.Encoding) Codec {
 	codecRegistryMutex.RLock()
 	defer codecRegistryMutex.RUnlock()
-	
+
 	if codec, exists := codecRegistry[string(encoding)]; exists {
 		return codec
 	}
@@ -74,4 +74,15 @@ func GetCodecForEncoding(encoding transport.Encoding) Codec {
 	return getCodecForEncoding(encoding)
 }
 
- 
+// GetCodecNames returns the names of all registered codecs
+func GetCodecNames() []transport.Encoding {
+	codecRegistryMutex.RLock()
+	defer codecRegistryMutex.RUnlock()
+	names := make([]transport.Encoding, 2+len(codecRegistry))
+	names[0] = Encoding
+	names[1] = JSONEncoding
+	for encoding := range codecRegistry {
+		names = append(names, transport.Encoding(encoding))
+	}
+	return names
+}
