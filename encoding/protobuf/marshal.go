@@ -68,6 +68,7 @@ func unmarshal(encoding transport.Encoding, reader io.Reader, message proto.Mess
 }
 
 func unmarshalBytes(encoding transport.Encoding, body []byte, message proto.Message, codec *codec) error {
+	// PoC -> To be improved cleaning up the logic, get rid of the switch
 	switch encoding {
 	case Encoding:
 		return unmarshalProto(body, message, codec)
@@ -91,12 +92,20 @@ func unmarshalJSON(body []byte, message proto.Message, codec *codec) error {
 }
 
 func marshal(encoding transport.Encoding, message proto.Message, codec *codec) ([]byte, func(), error) {
+	// PoC -> To be improved cleaning up the logic, get rid of the switch
 	switch encoding {
 	case Encoding:
 		return marshalProto(message, codec)
 	case JSONEncoding:
 		return marshalJSON(message, codec)
 	default:
+		if customCodec := getCodecForEncoding(encoding); customCodec != nil {
+			bufferSlice, err := customCodec.Marshal(message)
+			if err != nil {
+				return nil, nil, err
+			}
+			return bufferSlice.Materialize(), func() {}, nil
+		}
 		return nil, nil, yarpcerrors.Newf(yarpcerrors.CodeInternal, "encoding.Expect should have handled encoding %q but did not", encoding)
 	}
 }
