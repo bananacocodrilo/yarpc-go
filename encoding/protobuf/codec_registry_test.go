@@ -29,10 +29,10 @@ func TestCodecRegistry(t *testing.T) {
 	// Test public API
 	t.Run("publicAPI", func(t *testing.T) {
 		mockCodec := &MockYARPCCodec{name: "public-test"}
-		
+
 		// Register codec
 		RegisterCodecForEncoding(mockCodec)
-		
+
 		// Test public GetCodecForEncoding function
 		retrieved := GetCodecForEncoding("public-test")
 		assert.Equal(t, mockCodec, retrieved, "Public API should return registered codec")
@@ -68,19 +68,19 @@ func TestCodecRegistry(t *testing.T) {
 	// Test codec interface compliance
 	t.Run("codecInterface", func(t *testing.T) {
 		mockCodec := &MockYARPCCodec{name: "interface-test"}
-		
+
 		// Test Marshal
 		data, err := mockCodec.Marshal([]byte("test-data"))
 		assert.NoError(t, err)
 		assert.NotNil(t, data)
-		
+
 		// Test Unmarshal
 		var result []byte
 		bufSlice := mem.BufferSlice{mem.SliceBuffer([]byte("unmarshal-test"))}
 		err = mockCodec.Unmarshal(bufSlice, &result)
 		assert.NoError(t, err)
 		assert.Equal(t, []byte("unmarshal-test"), result)
-		
+
 		// Test Name
 		assert.Equal(t, "interface-test", mockCodec.Name())
 	})
