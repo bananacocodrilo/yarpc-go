@@ -1,0 +1,151 @@
+syntax = "proto3";
+
+package uber.infra.net.rpc.probe;
+
+option go_package = "probepb";
+option java_multiple_files = true;
+option java_outer_classname = "ProbeProto";
+option java_package = "com.uber.infra.net.rpc.probe";
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/any.proto";
+
+message EchoRequest {
+    Ping payload = 1;
+    google.protobuf.Duration sleep_before_copy = 2;
+    google.protobuf.Duration sleep_after_copy = 3;
+    bool respond_with_error = 4;
+    map<string, string> expected_transport_headers = 5; 
+    map<string, string> expected_application_headers = 6; 
+}
+
+message EchoResponse {
+    Pong payload = 1;
+}
+
+message EchoErrorDetail {
+    Pong payload = 1;
+}
+
+message EchoAnyRequest {
+    google.protobuf.Any any_with_wellknown_field = 1;
+    google.protobuf.Any any_with_echo_duration_field = 2;
+    google.protobuf.Any any_with_echo_int_field = 3;
+    google.protobuf.Any any_with_echo_nested_field = 4;
+}
+
+message EchoDurationType {
+    google.protobuf.Duration field = 1;
+}
+
+message EchoIntType {
+    int32 first = 1;
+    int64 second = 2;
+}
+
+message EchoNestedType {
+    string payload = 1;
+    EchoIntType nested = 2;
+}
+
+message EchoAnyResponse {
+    google.protobuf.Any any_with_wellknown_field = 5;
+    google.protobuf.Any any_with_echo_duration_field = 6;
+    google.protobuf.Any any_with_echo_int_field = 7;
+    google.protobuf.Any any_with_echo_nested_field = 8;
+}
+
+message EchoStreamRequest {
+    Ping payload = 1;
+    google.protobuf.Duration sleep_before_copy = 2;
+    google.protobuf.Duration sleep_after_copy = 3;
+    bool respond_with_error = 4;
+    map<string, string> expected_transport_headers = 5; 
+    map<string, string> expected_application_headers = 6;
+}
+
+message EchoStreamResponse {
+    Pong payload = 1;
+}
+
+service Probe {
+    // Echo procedure copies the EchoRequest and returns back the same as EchoResponse
+    rpc Echo(EchoRequest) returns (EchoResponse) {}
+
+    // EchoAny procedure parse and copies the proto.any fields from EchoAnyRequest
+    // and returns back to EchoAnyResponse
+    rpc EchoAny(EchoAnyRequest) returns (EchoAnyResponse) {}
+
+    // EchoStream procedure copies EchoStreamRequest and returns back as EchoStreamResponse to the stream
+    rpc EchoStream(stream EchoStreamRequest) returns (stream EchoStreamResponse) {}
+}
+
+enum PingEnum {
+    PING_ENUM_INVALID = 0;
+    PING_ENUM_PING = 1;
+    PING_ENUM_PONG = 2;
+}
+
+enum PongEnum {
+    PONG_ENUM_INVALID = 0;
+    PONG_ENUM_PING = 1;
+    PONG_ENUM_PONG = 2;
+}
+
+message Ping {
+    int32 ping_int32 = 1;
+    int64 ping_int64 = 2;
+    uint32 ping_uint32 = 3;
+    uint64 ping_uint64 = 4;
+    sint32 ping_sint32 = 5;
+    sint64 ping_sint64 = 6;
+    fixed32 ping_fixed32 = 7;
+    fixed64 ping_fixed64 = 8;
+    sfixed32 ping_sfixed32 = 9;
+    sfixed64 ping_sfixed64 = 10;
+    bool ping_bool = 11;
+    string ping_string = 12;
+    bytes ping_bytes = 13;
+    float ping_float = 14;
+    double ping_double = 15;
+
+    repeated Ping ping_list = 16;
+    map<string, Ping> ping_map = 17;
+
+    oneof ping_one_of {
+        string ping_one_of_string = 18;
+        bool ping_one_of_bool = 19;
+    }
+
+    PingEnum ping_enum = 20;
+    Ping ping_message = 21;
+}
+
+message Pong {
+    int32 pong_int32 = 1;
+    int64 pong_int64 = 2;
+    uint32 pong_uint32 = 3;
+    uint64 pong_uint64 = 4;
+    sint32 pong_sint32 = 5;
+    sint64 pong_sint64 = 6;
+    fixed32 pong_fixed32 = 7;
+    fixed64 pong_fixed64 = 8;
+    sfixed32 pong_sfixed32 = 9;
+    sfixed64 pong_sfixed64 = 10;
+    bool pong_bool = 11;
+    string pong_string = 12;
+    bytes pong_bytes = 13;
+    float pong_float = 14;
+    double pong_double = 15;
+
+    repeated Pong pong_list = 16;
+    map<string, Pong> pong_map = 17;
+
+    oneof pong_one_of {
+        string pong_one_of_string = 18;
+        bool pong_one_of_bool = 19;
+    }
+
+    PongEnum pong_enum = 20;
+    Pong pong_message = 21;
+}
