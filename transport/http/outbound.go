@@ -92,7 +92,7 @@ func AddHeader(key, value string) OutboundOption {
 		if o.headers == nil {
 			o.headers = make(http.Header)
 		}
-		o.headers.Add(key, value)
+		addHeaderDirect(o.headers, key, value)
 	}
 }
 
@@ -457,8 +457,14 @@ func (o *Outbound) createRequest(treq *transport.Request) (*http.Request, error)
 	// header is given along a HTTP/1 request.
 	// see: https://cs.opensource.google/go/x/net/+/c6fcb2db:http/httpguts/httplex.go;l=203
 	headers := applicationHeaders.deleteHTTP2PseudoHeadersIfNeeded(treq.Headers)
-	hreq.Header = applicationHeaders.ToHTTPHeaders(headers, nil)
+	hreq.Header = applicationHeaders.ToHTTPHeadersPreserveCase(headers, nil)
 	return hreq, nil
+}
+
+type directHTTPHeadersCarrier http.Header
+
+func (h directHTTPHeadersCarrier) Set(key, val string) {
+	setHeaderDirect(http.Header(h), key, val)
 }
 
 func (o *Outbound) withOpentracingSpan(ctx context.Context, req *http.Request, treq *transport.Request, start time.Time) (context.Context, *http.Request, opentracing.Span, error) {
@@ -491,7 +497,7 @@ func (o *Outbound) withOpentracingSpan(ctx context.Context, req *http.Request, t
 	err := tracer.Inject(
 		span.Context(),
 		opentracing.HTTPHeaders,
-		opentracing.HTTPHeadersCarrier(req.Header),
+		directHTTPHeadersCarrier(req.Header),
 	)
 
 	return ctx, req, span, err
@@ -501,39 +507,47 @@ func (o *Outbound) withCoreHeaders(req *http.Request, treq *transport.Request, t
 	// Add default headers to all requests.
 	for k, vs := range o.headers {
 		for _, v := range vs {
-			req.Header.Add(k, v)
+			addHeaderDirect(req.Header, k, v)
 		}
 	}
 
-	req.Header.Set(CallerHeader, treq.Caller)
-	req.Header.Set(ServiceHeader, treq.Service)
-	req.Header.Set(ProcedureHeader, treq.Procedure)
+	setHeaderDirect(req.Header, CallerHeader, treq.Caller)
+	setHeaderDirect(req.Header, ServiceHeader, treq.Service)
+	setHeaderDirect(req.Header, ProcedureHeader, treq.Procedure)
 	if ttl != 0 {
-		req.Header.Set(TTLMSHeader, fmt.Sprintf("%d", ttl/time.Millisecond))
+		setHeaderDirect(req.Header, TTLMSHeader, fmt.Sprintf("%d", ttl/time.Millisecond))
 	}
 	if treq.ShardKey != "" {
-		req.Header.Set(ShardKeyHeader, treq.ShardKey)
+		setHeaderDirect(req.Header, ShardKeyHeader, treq.ShardKey)
 	}
 	if treq.RoutingKey != "" {
-		req.Header.Set(RoutingKeyHeader, treq.RoutingKey)
+		setHeaderDirect(req.Header, RoutingKeyHeader, treq.RoutingKey)
 	}
 	if treq.RoutingDelegate != "" {
-		req.Header.Set(RoutingDelegateHeader, treq.RoutingDelegate)
+		setHeaderDirect(req.Header, RoutingDelegateHeader, treq.RoutingDelegate)
 	}
 	if treq.CallerProcedure != "" {
-		req.Header.Set(CallerProcedureHeader, treq.CallerProcedure)
+		setHeaderDirect(req.Header, CallerProcedureHeader, treq.CallerProcedure)
 	}
 
 	encoding := string(treq.Encoding)
 	if encoding != "" {
-		req.Header.Set(EncodingHeader, encoding)
+		setHeaderDirect(req.Header, EncodingHeader, encoding)
 	}
 
 	if o.bothResponseError {
-		req.Header.Set(AcceptsBothResponseErrorHeader, AcceptTrue)
+		setHeaderDirect(req.Header, AcceptsBothResponseErrorHeader, AcceptTrue)
 	}
 
 	return req
+}
+
+func addHeaderDirect(headers http.Header, key, value string) {
+	headers[key] = append(headers[key], value)
+}
+
+func setHeaderDirect(headers http.Header, key, value string) {
+	headers[key] = []string{value}
 }
 
 func getYARPCErrorFromResponse(tres *transport.Response, response *http.Response, bothResponseError bool) (*transport.Response, error) {

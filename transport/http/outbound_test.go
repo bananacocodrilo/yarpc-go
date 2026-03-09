@@ -115,10 +115,31 @@ func TestCreateRequest(t *testing.T) {
 			}
 			assert.Len(t, hreq.Header, len(appHeader), "wrong number of header")
 			for k, v := range appHeader {
-				assert.Equal(t, v, hreq.Header.Get(ApplicationHeaderPrefix+k), "header value mismatch")
+				assert.Equal(t, []string{v}, hreq.Header[ApplicationHeaderPrefix+k], "header value mismatch")
 			}
 		})
 	}
+}
+
+func TestCreateRequestPreservesOriginalHeaderCasing(t *testing.T) {
+	o := &Outbound{urlTemplate: defaultURLTemplate}
+	hreq, err := o.createRequest(&transport.Request{
+		Headers: transport.NewHeaders().With("X-CuStOm", "value"),
+	})
+	require.NoError(t, err)
+
+	originalCaseKey := ApplicationHeaderPrefix + "X-CuStOm"
+	canonicalCaseKey := ApplicationHeaderPrefix + "X-Custom"
+
+	var value string
+	for key, values := range hreq.Header {
+		if key == originalCaseKey {
+			require.Len(t, values, 1)
+			value = values[0]
+		}
+	}
+	assert.Equal(t, "value", value)
+	assert.NotContains(t, hreq.Header, canonicalCaseKey)
 }
 
 func TestCallWithHTTP2(t *testing.T) {
@@ -548,7 +569,7 @@ func TestOutboundHeaders(t *testing.T) {
 			wantHeaders: map[string]string{
 				"Rpc-Header-X": "y",
 				"X-Foo":        "bar",
-				"X-Bar":        "BAZ",
+				"X-BAR":        "BAZ",
 			},
 		},
 		{

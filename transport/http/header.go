@@ -54,6 +54,27 @@ func (hm headerMapper) ToHTTPHeaders(from transport.Headers, to http.Header) htt
 	return to
 }
 
+// ToHTTPHeadersPreserveCase converts application headers into HTTP headers
+// using transport header original keys as-is.
+//
+// This method writes keys directly into the destination map and does not use
+// net/http Header.Set/Add helpers, avoiding net/http key canonicalization.
+func (hm headerMapper) ToHTTPHeadersPreserveCase(from transport.Headers, to http.Header) http.Header {
+	if to == nil {
+		to = make(http.Header, from.OriginalItemsLen())
+	}
+	for key, val := range from.OriginalItems() {
+		switch {
+		case isTracingHeader(key) || isRoutingHeader(key):
+			to[key] = append(to[key], val)
+		default:
+			prefixedKey := hm.Prefix + key
+			to[prefixedKey] = append(to[prefixedKey], val)
+		}
+	}
+	return to
+}
+
 // fromHTTPHeaders converts HTTP headers to application headers.
 //
 // Headers are read from 'from' and written to 'to'. The final header collection
